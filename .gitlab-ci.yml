@@ -1,0 +1,48 @@
+stages:
+  - terraform
+
+variables:
+  TF_INPUT: false
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'  # Only run when manually triggered
+
+before_script:
+  - terraform --version
+  - export TF_VAR_action=$CI_JOB_NAME
+
+create:
+  stage: terraform
+  script:
+    - |
+      FOLDERS=("01.vpc/" "02.sg/" "02a.instances/" "03.db/" "04.internal-alb/" "05.acm/" "06.external-alb/" "07.backend-asg/" "08.frontend-asg/")
+
+      for folder in "${FOLDERS[@]}"; do
+        cd $folder
+        terraform init
+        terraform fmt -recursive
+        terraform validate
+        terraform plan
+        read -p "Proceed with 'terraform apply' for $folder? (yes/no) " response
+        if [ "$response" == "yes" ]; then
+          terraform apply --auto-approve
+        fi
+        cd ..
+      done
+
+destroy:
+  stage: terraform
+  script:
+    - |
+      FOLDERS=("08.frontend-asg/" "07.backend-asg/" "06.external-alb/" "05.acm/" "04.internal-alb/" "03.db/" "02a.instances/" "02.sg/" "01.vpc/")
+
+      for folder in "${FOLDERS[@]}"; do
+        cd $folder
+        terraform init
+        read -p "Proceed with 'terraform destroy' for $folder? (yes/no) " response
+        if [ "$response" == "yes" ]; then
+          terraform destroy --auto-approve
+        fi
+        cd ..
+      done

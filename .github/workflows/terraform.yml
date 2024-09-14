@@ -1,0 +1,61 @@
+name: Terraform Infra Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Choose whether to create or destroy resources'
+        required: true
+        default: 'create'
+        type: choice
+        options:
+          - create
+          - destroy
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    env:
+      TF_INPUT: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.9.5
+
+      - name: Terraform Init, Fmt, Validate, Plan, and Apply/Destroy
+        run: |
+          FOLDERS_CREATE=("01.vpc/" "02.sg/" "02a.instances/" "03.db/" "04.internal-alb/" "05.acm/" "06.external-alb/" "07.backend-asg/" "08.frontend-asg/")
+          FOLDERS_DESTROY=("08.frontend-asg/" "07.backend-asg/" "06.external-alb/" "05.acm/" "04.internal-alb/" "03.db/" "02a.instances/" "02.sg/" "01.vpc/")
+
+          if [ "${{ github.event.inputs.action }}" == "create" ]; then
+            for folder in "${FOLDERS_CREATE[@]}"; do
+              cd $folder
+              terraform init
+              terraform fmt -recursive
+              terraform validate
+              terraform plan
+              echo "Proceed with 'terraform apply' for $folder? (yes/no)"
+              read response
+              if [ "$response" == "yes" ]; then
+                terraform apply --auto-approve
+              fi
+              cd ..
+            done
+          elif [ "${{ github.event.inputs.action }}" == "destroy" ]; then
+            for folder in "${FOLDERS_DESTROY[@]}"; do
+              cd $folder
+              terraform init
+              echo "Proceed with 'terraform destroy' for $folder? (yes/no)"
+              read response
+              if [ "$response" == "yes" ]; then
+                terraform destroy --auto-approve
+              fi
+              cd ..
+            done
+          fi

@@ -1,0 +1,69 @@
+security_groups:
+  external_alb:
+    description: "Security Group for External ALB"
+    rules:
+      ingress:
+        - protocol: tcp
+          port_range: 80
+          source: "0.0.0.0/0"
+          description: "Allow HTTP traffic from the internet"
+        - protocol: tcp
+          port_range: 443
+          source: "0.0.0.0/0"
+          description: "Allow HTTPS traffic from the internet"
+      egress:
+        - protocol: tcp
+          port_range: 80
+          target_sg: "frontend"
+          description: "Allow HTTP traffic to Frontend"
+
+  frontend:
+    description: "Security Group for Frontend"
+    rules:
+      ingress:
+        - protocol: tcp
+          port_range: 80
+          source_sg: "external_alb"
+          description: "Allow HTTP traffic from External ALB"
+      egress:
+        - protocol: tcp
+          port_range: 80
+          target_sg: "internal_alb"
+          description: "Allow HTTP traffic to Internal ALB"
+
+  internal_alb:
+    description: "Security Group for Internal ALB"
+    rules:
+      ingress:
+        - protocol: tcp
+          port_range: 80
+          source_sg: "frontend"
+          description: "Allow HTTP traffic from Frontend"
+      egress:
+        - protocol: tcp
+          port_range: 8080
+          target_sg: "backend"
+          description: "Allow traffic to Backend on port 8080"
+
+  backend:
+    description: "Security Group for Backend"
+    rules:
+      ingress:
+        - protocol: tcp
+          port_range: 8080
+          source_sg: "internal_alb"
+          description: "Allow traffic from Internal ALB on port 8080"
+      egress:
+        - protocol: tcp
+          port_range: 3306
+          target_sg: "db"
+          description: "Allow traffic to DB on port 3306"
+
+  db:
+    description: "Security Group for Database"
+    rules:
+      ingress:
+        - protocol: tcp
+          port_range: 3306
+          source_sg: "backend"
+          description: "Allow traffic from Backend on port 3306"
